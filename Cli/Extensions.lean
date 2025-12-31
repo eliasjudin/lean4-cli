@@ -53,7 +53,7 @@ public section Extensions
   /-- Appends a longer description to the end of the help. -/
   def longDescription (description : String) : Extension := {
       extend := fun cmd => cmd.update (furtherInformation? :=
-        some <| Option.optStr cmd.furtherInformation? ++ lines #[
+        some <| lines #[
           Option.optStr cmd.furtherInformation?,
           (if cmd.hasFurtherInformation then "\n" else "") ++ renderSection "DESCRIPTION" description
         ]
@@ -105,7 +105,10 @@ public section Extensions
   -/
   def defaultValues! (defaults : Array (String × String)) : Extension :=
     let findDefaultFlags cmd := defaults.map <| fun (longName, defaultValue) =>
-      ⟨cmd.flag! longName, defaultValue⟩
+      let flag := cmd.flag! longName
+      if ¬ flag.type.isValid defaultValue then
+        panic! s!"Cli.defaultValues!: Default value `{defaultValue}` for flag `--{longName}` does not match type `{flag.type.name}`."
+      ⟨flag, defaultValue⟩
     {
       extend := fun cmd =>
         let defaultFlags := findDefaultFlags cmd
