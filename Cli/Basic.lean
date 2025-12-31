@@ -887,6 +887,12 @@ section Configuration
       loop c #[]
     where
       loop (c : Cmd) (parentNames : Array String) : Cmd :=
+        let mut subCmdNames : Std.TreeSet String compare := ∅
+        for subCmd in c.subCmds do
+          let name := subCmd.meta.name
+          if subCmdNames.contains name then
+            panic! s!"Cli.updateParentNames: Duplicate subcommand name `{name}` under `{c.meta.fullName}`."
+          subCmdNames := subCmdNames.insert name
         let subCmdParentNames := parentNames.push c.meta.name
         let subCmds := c.subCmds.map (loop · subCmdParentNames)
         .init { c.meta with parentNames := parentNames } c.run subCmds c.extension?
