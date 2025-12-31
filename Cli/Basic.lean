@@ -1443,15 +1443,18 @@ section Parsing
     private partial def readMultiFlag? : ParseM (Option (Array Parsed.Flag)) := do
       let some (flagContent, true) ← readFlagContent?
         | return none
-      let some (parsedFlags : Array (String × Parsed.Flag)) ← loop flagContent ∅
+      let some (parsedFlags : Array (String × Parsed.Flag)) ← loop flagContent
         | return none
+      let mut seen : Std.TreeSet String compare := ∅
       for (inputFlagName, parsedFlag) in parsedFlags do
+        if seen.contains parsedFlag.flag.longName then
+          throw <| ← parseError <| duplicateFlag parsedFlag.flag ⟨inputFlagName, true⟩
+        seen := seen.insert parsedFlag.flag.longName
         ensureFlagUnique parsedFlag.flag ⟨inputFlagName, true⟩
       skip
       return some <| parsedFlags.map (·.2)
     where
-      loop (flagContent : String) (matched : Std.TreeSet String compare)
-        : ParseM (Option (Array (String × Parsed.Flag))) := do
+      loop (flagContent : String) : ParseM (Option (Array (String × Parsed.Flag))) := do
         -- this is not tail recursive, but that's fine: `loop` will only recurse further if the corresponding
         -- flag has not been matched yet, meaning that this can only overflow if the application has an
         -- astronomical amount of short flags.
@@ -1461,13 +1464,11 @@ section Parsing
           (← cmd).meta.flags.filter (·.isParamless)
             |>.filter               (·.hasShortName)
             |>.filter               (·.shortName!.isPrefixOf flagContent)
-            |>.filter               (¬ matched.contains ·.shortName!)
             |>.qsort                (·.shortName!.length > ·.shortName!.length)
             |>.filterMapM fun flag => do
               let inputFlagName := flagContent.take flag.shortName!.length
               let restContent   := flagContent.drop flag.shortName!.length
-              let newMatched    := matched.insert flag.shortName!
-              let some tail ← loop restContent.copy newMatched
+              let some tail ← loop restContent.copy
                 | return none
               return some <| #[(inputFlagName.copy, ⟨flag, ""⟩)] ++ tail
         return parsedFlagsCandidates[0]?
