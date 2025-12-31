@@ -14,26 +14,30 @@ public section Utils
     Appends those elements of `right` to `left` whose `key` is not already
     contained in `left`.
     -/
-    def leftUnionBy [Ord α] (key : β → α) (left : Array β) (right : Array β)
-      : Array β := Id.run do
-      let leftMap := left.map (fun v => (key v, v)) |> Std.TreeMap.ofArray
+  def leftUnionBy [Ord α] (key : β → α) (left : Array β) (right : Array β)
+    : Array β := Id.run do
+      let mut leftMap := left.map (fun v => (key v, v)) |> Std.TreeMap.ofArray
       let mut result := left
       for v in right do
-        if ¬ leftMap.contains (key v) then
+        let k := key v
+        if ¬ leftMap.contains k then
           result := result.push v
+          leftMap := leftMap.insert k v
       return result
 
     /--
     Prepends those elements of `left` to `right` whose `key` is not already
     contained in `right`.
     -/
-    def rightUnionBy [Ord α] (key : β → α) (left : Array β) (right : Array β)
-      : Array β := Id.run do
-      let rightMap := right.map (fun v => (key v, v)) |> Std.TreeMap.ofArray
+  def rightUnionBy [Ord α] (key : β → α) (left : Array β) (right : Array β)
+    : Array β := Id.run do
+      let mut rightMap := right.map (fun v => (key v, v)) |> Std.TreeMap.ofArray
       let mut result := right
       for v in left.reverse do
-        if ¬ rightMap.contains (key v) then
+        let k := key v
+        if ¬ rightMap.contains k then
           result := #[v] ++ result
+          rightMap := rightMap.insert k v
       return result
 
     /-- Deletes all elements from `left` whose `key` is in `right`. -/
