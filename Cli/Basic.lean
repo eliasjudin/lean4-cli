@@ -485,11 +485,21 @@ section Configuration
     Adds help (`-h, --help`) and version (`--version`) flags to `m`. Does not add
     a version flag if `m` does not designate a version.
     -/
-  def addHelpAndVersionFlags (m : Meta) : Meta := Id.run do
-    if m.hasFlag "help" ∨ m.hasFlagByShortName "h" then
-      panic! "Cli.addHelpAndVersionFlags: `--help`/`-h` is reserved and may not be redefined."
-    if m.hasVersion ∧ m.hasFlag "version" then
-      panic! "Cli.addHelpAndVersionFlags: `--version` is reserved and may not be redefined."
+    def addHelpAndVersionFlags (m : Meta) : Meta := Id.run do
+      let mut longNames : Std.TreeSet String compare := ∅
+      let mut shortNames : Std.TreeSet String compare := ∅
+      for flag in m.flags do
+        if longNames.contains flag.longName then
+          panic! s!"Cli.addHelpAndVersionFlags: Duplicate flag name `--{flag.longName}`."
+        longNames := longNames.insert flag.longName
+        if let some shortName := flag.shortName? then
+          if shortNames.contains shortName then
+            panic! s!"Cli.addHelpAndVersionFlags: Duplicate short flag name `-{shortName}`."
+          shortNames := shortNames.insert shortName
+      if m.hasFlag "help" ∨ m.hasFlagByShortName "h" then
+        panic! "Cli.addHelpAndVersionFlags: `--help`/`-h` is reserved and may not be redefined."
+      if m.hasVersion ∧ m.hasFlag "version" then
+        panic! "Cli.addHelpAndVersionFlags: `--version` is reserved and may not be redefined."
     let helpFlag := .paramless
       (shortName?  := "h")
       (longName    := "help")
