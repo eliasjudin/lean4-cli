@@ -1088,8 +1088,11 @@ section Macro
           (variableArg?   := $(quote (← (Option.join variableArg).mapM expandVariableArg)))
           (run            := $(← expandRunFun run))
           (subCmds        := $(quote ((subCommands.getD ⟨#[]⟩).getElems : TSyntaxArray `term)))
-          (extension?     := some <| Array.foldl Extension.then { : Extension } <| Array.qsort
-            $(quote (extensions.getD ⟨#[]⟩).getElems) (·.priority > ·.priority)))
+          (extension?     := some <|
+            let exts := $(quote (extensions.getD ⟨#[]⟩).getElems)
+            let exts := exts.mapIdx (fun i e => (e.priority, i, e))
+            let exts := Array.qsort exts (fun a b => a.1 > b.1 ∨ (a.1 == b.1 ∧ a.2 < b.2))
+            Array.foldl Extension.then { : Extension } (exts.map (·.3))))
 end Macro
 
 section Info
