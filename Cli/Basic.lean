@@ -511,6 +511,18 @@ section Configuration
           (description := "Prints the version.")
         fixedFlags := fixedFlags.push versionFlag
       { m with flags := fixedFlags ++ m.flags }
+
+    /-- Ensures positional and variable argument names are unique. -/
+    def validateArgNames (m : Meta) : Meta := Id.run do
+      let mut argNames : Std.TreeSet String compare := ∅
+      for arg in m.positionalArgs do
+        if argNames.contains arg.name then
+          panic! s!"Cli.validateArgNames: Duplicate argument name `{arg.name}`."
+        argNames := argNames.insert arg.name
+      if let some varArg := m.variableArg? then
+        if argNames.contains varArg.name then
+          panic! s!"Cli.validateArgNames: Duplicate argument name `{varArg.name}`."
+      return m
   end Cmd.Meta
 
   /--
@@ -675,6 +687,7 @@ section Configuration
       (run     : Parsed → IO UInt32)
       (subCmds : Array ExtendableCmd := #[])
       : ExtendableCmd :=
+        let «meta» := meta.validateArgNames
         .init «meta» run subCmds none
 
     /--
@@ -911,7 +924,7 @@ section Configuration
       (subCmds    : Array Cmd        := #[])
       (extension? : Option Extension := none)
       : Cmd :=
-        let «meta» := meta.addHelpAndVersionFlags
+        let «meta» := meta.addHelpAndVersionFlags |>.validateArgNames
         let c := .init «meta» run subCmds extension?
         updateParentNames c
 
