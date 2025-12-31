@@ -481,21 +481,38 @@ section Configuration
     /-- Checks whether `m` has a flag with the corresponding `shortName`. -/
     def hasFlagByShortName (m : Meta) (name : String) : Bool := m.flagByShortName? name |>.isSome
 
+    private def isValidFlagName (name : String) : Bool :=
+      name ≠ "" ∧
+      ¬ name.contains ' ' ∧
+      ¬ name.contains '\t' ∧
+      ¬ name.contains '\n' ∧
+      ¬ name.contains '\r' ∧
+      ¬ name.contains '='
+
+    /-- Ensures flag names are unique and parseable. -/
+    def validateFlags (m : Meta) : Meta := Id.run do
+      let mut longNames : Std.TreeSet String compare := ∅
+      let mut shortNames : Std.TreeSet String compare := ∅
+      for flag in m.flags do
+        if ¬ isValidFlagName flag.longName then
+          panic! s!"Cli.validateFlags: Invalid long flag name `--{flag.longName}`."
+        if longNames.contains flag.longName then
+          panic! s!"Cli.validateFlags: Duplicate flag name `--{flag.longName}`."
+        longNames := longNames.insert flag.longName
+        if let some shortName := flag.shortName? then
+          if ¬ isValidFlagName shortName then
+            panic! s!"Cli.validateFlags: Invalid short flag name `-{shortName}`."
+          if shortNames.contains shortName then
+            panic! s!"Cli.validateFlags: Duplicate short flag name `-{shortName}`."
+          shortNames := shortNames.insert shortName
+      return m
+
     /--
     Adds help (`-h, --help`) and version (`--version`) flags to `m`. Does not add
     a version flag if `m` does not designate a version.
     -/
     def addHelpAndVersionFlags (m : Meta) : Meta := Id.run do
-      let mut longNames : Std.TreeSet String compare := ∅
-      let mut shortNames : Std.TreeSet String compare := ∅
-      for flag in m.flags do
-        if longNames.contains flag.longName then
-          panic! s!"Cli.addHelpAndVersionFlags: Duplicate flag name `--{flag.longName}`."
-        longNames := longNames.insert flag.longName
-        if let some shortName := flag.shortName? then
-          if shortNames.contains shortName then
-            panic! s!"Cli.addHelpAndVersionFlags: Duplicate short flag name `-{shortName}`."
-          shortNames := shortNames.insert shortName
+      let m := m.validateFlags
       if m.hasFlag "help" ∨ m.hasFlagByShortName "h" then
         panic! "Cli.addHelpAndVersionFlags: `--help`/`-h` is reserved and may not be redefined."
       if m.hasVersion ∧ m.hasFlag "version" then
@@ -687,7 +704,7 @@ section Configuration
       (run     : Parsed → IO UInt32)
       (subCmds : Array ExtendableCmd := #[])
       : ExtendableCmd :=
-        let «meta» := meta.validateArgNames
+        let «meta» := meta.validateFlags |>.validateArgNames
         .init «meta» run subCmds none
 
     /--
