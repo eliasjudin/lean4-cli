@@ -68,6 +68,8 @@ public section Extensions
   def helpSubCommand : Extension := {
       priority := 0
       extend   := fun cmd =>
+        if cmd.hasSubCmd "help" then
+          panic! "Cli.helpSubCommand: Command already defines a `help` subcommand."
         let helpCmd := .mk
           (parent      := cmd)
           (name        := "help")
@@ -89,6 +91,8 @@ public section Extensions
     extend := fun cmd =>
       if cmd.version?.isNone then
         panic! "Cli.versionSubCommand!: Cannot add `version` subcommand to command without a version."
+      if cmd.hasSubCmd "version" then
+        panic! "Cli.versionSubCommand!: Command already defines a `version` subcommand."
       else
         let helpCmd := .mk
           (parent      := cmd)
